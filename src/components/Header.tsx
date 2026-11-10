@@ -13,6 +13,7 @@ import {
   Mic
 } from 'lucide-react';
 import { BrandLogo } from './BrandLogo';
+import { PWAInstallButton } from './PWAInstallButton';
 
 interface HeaderProps {
   statusText: string;
@@ -84,7 +85,9 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
 
       {/* Right Action Buttons */}
-      <div className="flex items-center gap-1 text-zinc-400 shrink-0 relative" ref={menuRef}>
+      <div className="flex items-center gap-1.5 text-zinc-400 shrink-0 relative" ref={menuRef}>
+        <PWAInstallButton />
+
         {/* Key Quick Buttons */}
         <button
           onClick={onOpenRiders}
