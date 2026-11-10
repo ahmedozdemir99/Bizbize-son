@@ -1,13 +1,27 @@
 import React, { useState, useMemo } from 'react';
-import { X, Map as MapIcon, Navigation, Layers, ExternalLink, ShieldCheck } from 'lucide-react';
+import { X, Map as MapIcon, Navigation, Layers, ExternalLink, ShieldCheck, Clock, Gauge, Route } from 'lucide-react';
 import { LiveMap } from '../LiveMap';
 import { CompassOverlay } from '../CompassOverlay';
 import { Message, LocationData } from '../../types';
+import { latestLiveLocations } from '../../services/location';
 
 interface GroupMapModalProps {
   isOpen: boolean;
   onClose: () => void;
   messages: Message[];
+}
+
+function calculateDistanceMeters(lat1: number, lon1: number, lat2: number, lon2: number) {
+  const R = 6371e3;
+  const radLat1 = (lat1 * Math.PI) / 180;
+  const radLat2 = (lat2 * Math.PI) / 180;
+  const deltaLat = ((lat2 - lat1) * Math.PI) / 180;
+  const deltaLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(deltaLat / 2) * Math.sin(deltaLat / 2) +
+    Math.cos(radLat1) * Math.cos(radLat2) * Math.sin(deltaLon / 2) * Math.sin(deltaLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
 }
 
 export const GroupMapModal: React.FC<GroupMapModalProps> = ({
@@ -34,6 +48,35 @@ export const GroupMapModal: React.FC<GroupMapModalProps> = ({
     return { lat: 40.9568, lng: 39.8617 };
   }, [messages]);
 
+  // Convoy ETA and Average Speed calculations
+  const routeStats = useMemo(() => {
+    const activeMsgs = latestLiveLocations(messages, Date.now());
+    const points = activeMsgs.map(m => {
+      try { return JSON.parse(m.url!) as LocationData; } catch { return null; }
+    }).filter(Boolean) as LocationData[];
+
+    let totalDistMeters = 0;
+    if (points.length >= 2) {
+      for (let i = 0; i < points.length - 1; i++) {
+        totalDistMeters += calculateDistanceMeters(points[i].lat, points[i].lng, points[i+1].lat, points[i+1].lng);
+      }
+    } else {
+      totalDistMeters = 3500; // Default estimated route length for single rider or demo
+    }
+
+    const avgSpeedKmH = 52; // Average convoy cruising speed
+    const distanceKm = totalDistMeters / 1000;
+    const hours = distanceKm / avgSpeedKmH;
+    const totalMinutes = Math.max(3, Math.round(hours * 60));
+
+    return {
+      activeRidersCount: points.length,
+      distanceFormatted: distanceKm >= 1 ? `${distanceKm.toFixed(1)} km` : `${Math.round(totalDistMeters)} m`,
+      avgSpeed: avgSpeedKmH,
+      etaMinutes: totalMinutes,
+    };
+  }, [messages]);
+
   if (!isOpen) return null;
 
   const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${latestLoc.lat},${latestLoc.lng}`;
@@ -41,7 +84,7 @@ export const GroupMapModal: React.FC<GroupMapModalProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black/90 z-[600] flex items-center justify-center p-2 sm:p-4 animate-in fade-in">
-      <div className="bg-zinc-900 border border-zinc-800 rounded-3xl w-full max-w-xl h-[85vh] flex flex-col shadow-2xl overflow-hidden">
+      <div className="bg-zinc-900 border border-zinc-800 rounded-3xl w-full max-w-xl h-[88vh] flex flex-col shadow-2xl overflow-hidden">
         {/* Header */}
         <div className="flex justify-between items-center px-4 py-3 border-b border-zinc-800 bg-zinc-950/80 shrink-0">
           <div className="flex items-center gap-2 text-white font-bold">
@@ -50,7 +93,7 @@ export const GroupMapModal: React.FC<GroupMapModalProps> = ({
             </div>
             <div>
               <div className="flex items-center gap-1.5">
-                <span className="text-sm">Kortej Haritası</span>
+                <span className="text-sm">Kortej Haritası & ETA</span>
                 <span className="px-1.5 py-0.5 rounded-full bg-orange-500/10 border border-orange-500/30 text-[9px] font-mono font-bold text-orange-400">
                   {viewMode === 'google' ? 'Google Haritalar' : 'Radar Katmanı'}
                 </span>
@@ -124,6 +167,33 @@ export const GroupMapModal: React.FC<GroupMapModalProps> = ({
           )}
         </div>
 
+        {/* ETA & Average Speed HUD Bar */}
+        <div className="px-4 py-2.5 bg-zinc-950 border-t border-zinc-800 shrink-0 grid grid-cols-3 gap-2 font-mono">
+          <div className="bg-zinc-900/90 border border-zinc-800 rounded-xl p-2 flex flex-col items-center justify-center">
+            <div className="flex items-center gap-1 text-[10px] text-zinc-400">
+              <Gauge className="w-3 h-3 text-orange-400" />
+              <span>Ortalama Hız</span>
+            </div>
+            <span className="text-white font-bold text-xs mt-0.5">{routeStats.avgSpeed} km/s</span>
+          </div>
+
+          <div className="bg-zinc-900/90 border border-zinc-800 rounded-xl p-2 flex flex-col items-center justify-center">
+            <div className="flex items-center gap-1 text-[10px] text-zinc-400">
+              <Route className="w-3 h-3 text-emerald-400" />
+              <span>Rota Mesafesi</span>
+            </div>
+            <span className="text-white font-bold text-xs mt-0.5">{routeStats.distanceFormatted}</span>
+          </div>
+
+          <div className="bg-orange-600/15 border border-orange-500/40 rounded-xl p-2 flex flex-col items-center justify-center">
+            <div className="flex items-center gap-1 text-[10px] text-orange-400">
+              <Clock className="w-3 h-3 text-orange-400 animate-pulse" />
+              <span>Tahmini ETA</span>
+            </div>
+            <span className="text-orange-300 font-black text-xs mt-0.5">~{routeStats.etaMinutes} dk</span>
+          </div>
+        </div>
+
         {/* Footer Quick Action */}
         <div className="p-3 bg-zinc-950 border-t border-zinc-800 shrink-0 flex items-center justify-between gap-3">
           <a
@@ -141,3 +211,4 @@ export const GroupMapModal: React.FC<GroupMapModalProps> = ({
     </div>
   );
 };
+

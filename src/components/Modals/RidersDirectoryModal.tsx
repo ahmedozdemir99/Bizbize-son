@@ -124,7 +124,7 @@ export const RidersDirectoryModal: React.FC<RidersDirectoryModalProps> = ({
                   <button
                     onClick={() => onHideRider(u.id, u.name || 'Rider')}
                     className="p-2 bg-red-950 hover:bg-red-900 text-red-400 border border-red-900/40 rounded-xl text-xs biker-btn"
-                    title="Sürücüyü Sil / Kaldır"
+                    title="Sürücüyü ve Kayıtlarını Kalıcı Olarak Sil"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>

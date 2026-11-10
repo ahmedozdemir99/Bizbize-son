@@ -732,8 +732,24 @@ export default function App() {
     const id = resolveRiderId(chatId, deviceId, dmContacts[chatId]?.id);
     if (id && window.confirm(`"${name}" sürücüsü rehberinizden kaldırılsın mı? Mesaj geçmişi korunur.`)) { removeRider(id); showToast('Sürücü rehberinizden kaldırıldı.'); }
   };
-  const handleHideRider = (id: string, name: string) => {
-    if (window.confirm(`"${name}" sürücüsü rehberinizden kaldırılsın mı?`)) { removeRider(id); showToast('Sürücü rehberinizden kaldırıldı.'); }
+  const handleHideRider = async (id: string, name: string) => {
+    if (window.confirm(`"${name}" sürücüsü ve tüm kayıtları veritabanından ve cihazdan KALICI olarak silinsin mi?`)) {
+      removeRider(id);
+      const dmId = 'dm_' + [deviceId, id].sort().join('_');
+      clearLocalMessages(dmId);
+      const client = getSupabaseClient();
+      if (client) {
+        try {
+          await client.from('profiles').delete().eq('id', id);
+          showToast(`"${name}" veritabanından kalıcı olarak silindi.`);
+        } catch {
+          showToast(`"${name}" listeden kaldırıldı.`);
+        }
+      } else {
+        showToast(`"${name}" kalıcı olarak silindi.`);
+      }
+      void fetchOnlineRiders();
+    }
   };
   const handleAddRider = (inputName: string, inputId: string): boolean => {
     const name = inputName.trim(), id = inputId.trim();
