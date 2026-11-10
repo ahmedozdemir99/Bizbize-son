@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { X, Map as MapIcon, Navigation, Layers, ExternalLink, ShieldCheck } from 'lucide-react';
 import { LiveMap } from '../LiveMap';
+import { CompassOverlay } from '../CompassOverlay';
 import { Message, LocationData } from '../../types';
 
 interface GroupMapModalProps {
@@ -107,6 +108,7 @@ export const GroupMapModal: React.FC<GroupMapModalProps> = ({
 
         {/* Content Body */}
         <div className="flex-1 overflow-hidden p-2 bg-zinc-950 relative">
+          <CompassOverlay />
           {viewMode === 'google' ? (
             <div className="w-full h-full rounded-2xl overflow-hidden border border-zinc-800 relative bg-zinc-900">
               <iframe
